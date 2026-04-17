@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>МЭЛСТРОЙ КАЗИК VIP</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: url('bg.gif');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden; 
+        }
+        
+        /* Основной контейнер стал прозрачнее (0.5 вместо 0.9) */
+        .container {
+            background-color: rgba(0, 0, 0, 0.5); 
+            border: 2px solid #fff;
+            padding: 25px;
+            width: 100%;
+            max-width: 450px;
+            box-sizing: border-box;
+            text-align: center;
+            z-index: 10;
+            position: relative;
+            backdrop-filter: blur(5px); /* Легкое размытие фона для стиля */
+        }
+        
+        h1 { font-size: 1.8rem; text-transform: uppercase; border-bottom: 2px solid #fff; padding-bottom: 10px; margin-top: 0; }
+        
+        .controls-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            border: 1px solid rgba(255, 255, 255, 0.5); 
+            padding: 10px; 
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Кнопки — полностью НЕ прозрачные */
+        .music-btn, .reset-btn, .bet-btn, .spin-btn {
+            opacity: 1 !important;
+            background-color: #fff !important;
+            color: #000 !important;
+            border: none !important;
+        }
+
+        .music-btn, .reset-btn {
+            padding: 5px 10px;
+            font-family: monospace;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .slots-box { 
+            display: flex; 
+            justify-content: space-between; 
+            margin: 20px 0; 
+            padding: 10px; 
+            border: 2px solid #fff; 
+            background: rgba(255, 255, 255, 0.1); 
+        }
+        
+        .slot { width: 32%; display: flex; justify-content: center; align-items: center; }
+        .slot img { width: 100%; height: 110px; object-fit: cover; border: 1px solid #555; }
+        
+        .bet-controls { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        
+        .bet-btn { 
+            padding: 8px; 
+            font-family: monospace; 
+            cursor: pointer; 
+            width: 23%; 
+            font-weight: bold; 
+        }
+        
+        input { 
+            width: 100%; 
+            padding: 10px; 
+            background-color: rgba(0, 0, 0, 0.6); 
+            border: 1px solid #fff; 
+            color: #fff; 
+            font-family: monospace; 
+            box-sizing: border-box; 
+            font-size: 1.2rem; 
+            text-align: center; 
+            margin-bottom: 15px; 
+        }
+        
+        button.spin-btn { 
+            width: 100%; 
+            font-family: monospace; 
+            font-size: 1.5rem; 
+            text-transform: uppercase; 
+            padding: 15px; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+        
+        button.spin-btn:disabled { background-color: #555 !important; color: #222 !important; cursor: not-allowed; }
+        
+        .result-box { 
+            margin-top: 15px; 
+            padding: 15px; 
+            border: 1px dashed #fff; 
+            text-align: center; 
+            min-height: 50px; 
+            white-space: pre-line; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        @keyframes fall { 0% { transform: translateY(-150px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+        .falling-img { position: fixed; top: -150px; width: 80px; height: 80px; object-fit: cover; border: 2px solid #fff; z-index: 9999; pointer-events: none; animation: fall linear forwards; }
+    </style>
+</head>
+<body>
+
+<audio id="bgMusic"></audio>
+
+<div class="container">
+    <h1>МЭЛСТРОЙ КАЗИК VIP</h1>
+    <div class="controls-row">
+        <div>БАЛИК: <span id="balance"></span></div>
+        <button id="musicToggle" class="music-btn" onclick="toggleMusic()">МУЗЫКА: OFF</button>
+    </div>
+    <div class="slots-box">
+        <div class="slot"><img id="slot1" src="1.jpg"></div>
+        <div class="slot"><img id="slot2" src="2.jpg"></div>
+        <div class="slot"><img id="slot3" src="3.jpg"></div>
+    </div>
+    <div class="bet-controls">
+        <button class="bet-btn" onclick="setBet('min')">MIN</button>
+        <button class="bet-btn" onclick="changeBet(100)">+100</button>
+        <button class="bet-btn" onclick="changeBet('x2')">X2</button>
+        <button class="bet-btn" onclick="setBet('max')">ALL-IN</button>
+    </div>
+    <input type="number" id="betAmount" value="100">
+    <button class="spin-btn" id="spinBtn" onclick="spinSlots()">ДЕРНУТЬ РУЧКУ</button>
+    <div class="result-box" id="resultDisplay">ГОТОВ К КРУТКЕ?</div>
+    <div style="margin-top: 10px; text-align: right;"><button class="reset-btn" onclick="resetBalance()">Сброс</button></div>
+</div>
+
+<script>
+    const images = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg'];
+    const winPins = ['win_pin1.jpg', 'win_pin2.jpg', 'win_pin3.jpg']; 
+    const bgTracks = ['bg1.mp3', 'bg2.mp3', 'bg3.mp3'];
+    const fullWinSounds = ['win1.mp3', 'win2.mp3', 'win3.mp3', 'win4.mp3', 'win5.mp3'];
+    const halfWinSounds = ['half1.mp3', 'half2.mp3', 'half3.mp3'];
+    const loseSounds = ['lose1.mp3', 'lose2.mp3', 'lose3.mp3'];
+    const winPhrases = ["бам бам бам!", "АМ АМ АМ АМ!", "яблоки зелёные! Сливыыыы!!!!", "Даануу нахуйййй", "оууу да детка ты такая сладкая конфетка"];
+
+    let balance = parseInt(localStorage.getItem('melstroyBalik')) || 1000;
+    document.getElementById("balance").innerText = balance;
+
+    const lastIndices = {};
+    function getRandomUnique(array, key) {
+        let index;
+        do {
+            index = Math.floor(Math.random() * array.length);
+        } while (index === lastIndices[key] && array.length > 1);
+        lastIndices[key] = index;
+        return array[index];
+    }
+
+    function saveBalance() {
+        localStorage.setItem('melstroyBalik', balance);
+        document.getElementById("balance").innerText = balance;
+    }
+
+    function resetBalance() { if(confirm("Сбросить баланс?")) { balance = 1000; saveBalance(); } }
+
+    const betInput = document.getElementById("betAmount");
+    function setBet(type) {
+        if (type === 'min') betInput.value = 10;
+        if (type === 'max') betInput.value = balance;
+    }
+    function changeBet(val) {
+        let cur = parseInt(betInput.value) || 0;
+        betInput.value = (val === 'x2') ? cur * 2 : cur + val;
+    }
+
+    const audio = document.getElementById("bgMusic");
+    const musicBtn = document.getElementById("musicToggle");
+    let isMusicPlaying = false;
+
+    function toggleMusic() {
+        if (isMusicPlaying) { 
+            audio.pause(); 
+            musicBtn.innerText = "МУЗЫКА: OFF"; 
+            isMusicPlaying = false; 
+        } else { 
+            if (!audio.src || audio.src === "" || audio.src.endsWith(".html")) {
+                audio.src = getRandomUnique(bgTracks, 'bg');
+            }
+            audio.volume = 0.5;
+            audio.play().then(() => {
+                musicBtn.innerText = "МУЗЫКА: ON"; 
+                isMusicPlaying = true;
+            }).catch(e => alert("Нажми ОК и еще раз на кнопку музыки!")); 
+        }
+    }
+
+    audio.addEventListener('ended', () => {
+        audio.src = getRandomUnique(bgTracks, 'bg');
+        audio.play();
+    });
+
+    function playEffect(sounds) {
+        const s = new Audio(getRandomUnique(sounds, 'effect'));
+        s.volume = 1.0;
+        if (isMusicPlaying) audio.volume = 0.1;
+        s.play().catch(e => {});
+        s.onended = () => { if (isMusicPlaying) audio.volume = 0.5; };
+    }
+
+    function triggerWinEffect() {
+        for(let i = 0; i < 25; i++) {
+            setTimeout(() => {
+                const img = document.createElement('img');
+                img.className = 'falling-img';
+                img.src = getRandomUnique(winPins, 'pin');
+                img.style.left = Math.random() * 90 + 'vw';
+                img.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+                document.body.appendChild(img);
+                setTimeout(() => img.remove(), 4000);
+            }, Math.random() * 1000);
+        }
+    }
+
+    let isSpinning = false;
+    function spinSlots() {
+        if (isSpinning) return;
+        if (!isMusicPlaying) toggleMusic();
+
+        let bet = parseInt(betInput.value, 10);
+        if (isNaN(bet) || bet <= 0 || bet > balance) { alert("Ставка не лезет!"); return; }
+
+        balance -= bet; saveBalance();
+        document.getElementById("resultDisplay").innerText = "КРУТИМ...";
+        isSpinning = true;
+        document.getElementById("spinBtn").disabled = true;
+
+        let ticks = 0;
+        const interval = setInterval(() => {
+            document.getElementById("slot1").src = images[Math.floor(Math.random() * images.length)];
+            document.getElementById("slot2").src = images[Math.floor(Math.random() * images.length)];
+            document.getElementById("slot3").src = images[Math.floor(Math.random() * images.length)];
+            if (++ticks >= 20) {
+                clearInterval(interval);
+                const f1 = images[Math.floor(Math.random() * images.length)];
+                const f2 = images[Math.floor(Math.random() * images.length)];
+                const f3 = images[Math.floor(Math.random() * images.length)];
+                document.getElementById("slot1").src = f1;
+                document.getElementById("slot2").src = f2;
+                document.getElementById("slot3").src = f3;
+                checkResult(f1, f2, f3, bet);
+                isSpinning = false;
+                document.getElementById("spinBtn").disabled = false;
+            }
+        }, 50);
+    }
+
+    function checkResult(f1, f2, f3, bet) {
+        let payout = 0;
+        if (f1 === f2 && f2 === f3) {
+            payout = bet * 30;
+            playEffect(fullWinSounds);
+            triggerWinEffect();
+            document.getElementById("resultDisplay").innerText = getRandomUnique(winPhrases, 'phrase') + `\n+${payout}`;
+        } else if (f1 === f2 || f2 === f3 || f1 === f3) {
+            payout = bet * 3;
+            playEffect(halfWinSounds);
+            triggerWinEffect();
+            document.getElementById("resultDisplay").innerText = `ПОЛУ-ЗАНОС!\n+${payout}`;
+        } else {
+            playEffect(loseSounds);
+            document.getElementById("resultDisplay").innerText = "ЛОООХ...";
+        }
+        if (payout > 0) balance += payout;
+        saveBalance();
+    }
+</script>
+</body>
+</html>
